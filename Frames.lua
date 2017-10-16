@@ -198,7 +198,7 @@ function aTable.createFrames()
         -- debugg print when clicking dest city
         --print("--------")
         --print(source)
-        local paths = aTable.arrayToTable(aTable.paths[source])
+        local paths = aTable.createSortedTable(aTable.paths[source])
         
         if paths ~= nil then
             for i=1, NUM_LINES do
@@ -238,9 +238,13 @@ function aTable.createFrames()
 	
     function mmf.OnEvent(self, event)
         -- sorted table of all the cities
-        aTable.sortedCities = aTable.arrayToTable(aTable.cities, 1)
+        aTable.sortedCities = aTable.createSortedTable(aTable.cities, 1)
 		-- sorted table of paths between cities
-        aTable.sortedPaths = aTable.arrayToTable(aTable.paths)
+        aTable.sortedPaths = aTable.createSortedTable(aTable.paths)
+		-- table containing the index value of each new alphabet word.
+		-- ex: cityAlphabetTable[d] = 242. The first 'd' word is at index 242.
+		-- this can be used for efficient searching of cities
+		aTable.cityAlphabetTable = aTable.createAlphabetTable(aTable.sortedCities)
         mmf.sourceScrollFrame.ScrollBar:SetValue(0)
         mmf.SourceScrollFrameUpdate()
         mmf.destScrollFrame.ScrollBar:SetValue(0)

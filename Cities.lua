@@ -1,7 +1,7 @@
 local aName, aTable = ...
 
 -- takes an array and returns it as a sorted table.
-function aTable.arrayToTable(array, indexing)
+function aTable.createSortedTable(array, indexing)
     if array ~= nil then
         local temp = {}
         for k in pairs(array) do
@@ -14,30 +14,25 @@ function aTable.arrayToTable(array, indexing)
     end
 end
 
--- function aTable.iteratorSearchIndex(array)
-	-- local temp = {}
-    -- for k,v in ipairs(array) do
-		-- print("key: ", k, "   value:", v)
-        -- if #v == 1 then
-			-- temp[v] = k
-		-- end
-	-- end
-	-- return temp
--- end
 
--- function aTable.createSearchIndex(array)
-	-- local temp = {}
-	-- -- ascii 26 alphabetical letters
-	-- local ascii = 65
-	-- for k,v in ipairs(array) do
-		-- local char = string.char(ascii)
-		-- if (string.lower(v):sub(1,1) == char)
-			
-		-- end
-		
--- end
+-- this function assumes it is being given a sorted table.
+-- aTable.createSortedTable(array) can be used to produce sorted tables.
+function aTable.createAlphabetTable(table)
+	local temp = {}
+	local letter
+	-- efficient local scoping of external locals
+	local lower = string.lower
+	for k,v in ipairs(table) do
+		-- if a new first letter is seen, insert its index in the table
+		if lower(v):sub(1,1) ~= letter then
+			letter = lower(v):sub(1,1)
+			temp[letter] = k
+		end
+	end
+	return temp
+end
 
-    -- Check if the city leads to nowhere
+-- Check if the city leads to nowhere
 function aTable.deadEnd(city)
         if aTable.paths[city] then
             for k in pairs(aTable.paths[city]) do
