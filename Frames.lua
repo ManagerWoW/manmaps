@@ -47,32 +47,8 @@ function aTable.createFrames()
 	-- Close button for main frame
 	mmf.Close = CreateFrame("Button", "ManMapsClose", mmf, "UIPanelCloseButton")
 	mmf.Close:SetPoint("TOPRIGHT", -9, -9)
-
-	-- FauxScrollframe for source locations
-	mmf.sourceScrollFrame = CreateFrame("ScrollFrame", "ManMaps_SourceScrollFrame", ManMapsFrame, "FauxScrollFrameTemplate")
-	mmf.sourceScrollFrame:SetPoint("TOPLEFT", 20, -100)
-	mmf.sourceScrollFrame:SetPoint("BOTTOMRIGHT", -700, 20)
-	mmf.sourceScrollFrame:SetBackdrop({
-		bgFile="Interface\\Addons\\ManMaps\\media\\White",
-		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
-		tile=1, tileSize=1, edgeSize=1, 
-		insets={left=12, right=12, top=12, bottom=12}})
-	mmf.sourceScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
-	mmf.sourceScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
-    
-	-- FauxScrollframe for desinations
-	mmf.destScrollFrame = CreateFrame("ScrollFrame", "ManMaps_DestinationScrollFrame", ManMapsFrame, "FauxScrollFrameTemplate")
-	mmf.destScrollFrame:SetPoint("TOPLEFT", mmf.sourceScrollFrame, "TOPRIGHT", 30, 0)
-	mmf.destScrollFrame:SetPoint("BOTTOMRIGHT", -480, 20)
-	mmf.destScrollFrame:SetBackdrop({
-		bgFile="Interface\\Addons\\ManMaps\\media\\White",
-		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
-		tile=1, tileSize=1, edgeSize=1, 
-		insets={left=1, right=1, top=1, bottom=1}})
-	mmf.destScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
-	mmf.destScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
-    
-	-- Home tab
+	
+		-- Home tab
 	mmf.mainTab = CreateFrame("Button", "ManMaps_Home", mmf, "UIPanelButtonTemplate")
 	mmf.mainTab:SetPoint("TOPLEFT", 13, -13)
 	mmf.mainTab:SetFrameLevel(mmf:GetFrameLevel()+1)
@@ -100,6 +76,32 @@ function aTable.createFrames()
 	mmf.RoutesTab:SetFontString(mmf.RoutesTab.Text)
 	mmf.RoutesTab:SetSize(mmf.RoutesTab.Text:GetStringWidth()+10,mmf.RoutesTab.Text:GetStringHeight()+10)
 
+	-- FauxScrollframe for source locations
+	mmf.sourceScrollFrame = CreateFrame("ScrollFrame", "ManMaps_SourceScrollFrame", ManMapsFrame, "FauxScrollFrameTemplate")
+	mmf.sourceScrollFrame:SetPoint("TOPLEFT", 20, -100)
+	mmf.sourceScrollFrame:SetPoint("BOTTOMRIGHT", -700, 20)
+	mmf.sourceScrollFrame:SetBackdrop({
+		bgFile="Interface\\Addons\\ManMaps\\media\\White",
+		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
+		tile=1, tileSize=1, edgeSize=1, 
+		insets={left=12, right=12, top=12, bottom=12}})
+	mmf.sourceScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
+	mmf.sourceScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
+    
+	-- FauxScrollframe for desinations
+	mmf.destScrollFrame = CreateFrame("ScrollFrame", "ManMaps_DestinationScrollFrame", ManMapsFrame, "FauxScrollFrameTemplate")
+	mmf.destScrollFrame:SetPoint("TOPLEFT", mmf.sourceScrollFrame, "TOPRIGHT", 30, 0)
+	mmf.destScrollFrame:SetPoint("BOTTOMRIGHT", -480, 20)
+	mmf.destScrollFrame:SetBackdrop({
+		bgFile="Interface\\Addons\\ManMaps\\media\\White",
+		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
+		tile=1, tileSize=1, edgeSize=1, 
+		insets={left=1, right=1, top=1, bottom=1}})
+	mmf.destScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
+	mmf.destScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
+    
+
+
     
 	--------------------------------------
 	--------------------------------------
@@ -119,10 +121,10 @@ function aTable.createFrames()
         sourceCity:SetHeight(LINE_HEIGHT)
         sourceCity:SetWidth(mmf.sourceScrollFrame:GetWidth())
 		sourceCity:SetPoint("TOPLEFT", 0, -(i-1)*LINE_HEIGHT-4)
-        -- disable the button until it is needed
-        sourceCity:Disable()
         -- removes the button background
         sourceCity:DisableDrawLayer("BACKGROUND")
+		-- disable the button until it is needed
+        sourceCity:Disable()
 		mmf.sourceScrollFrame.sources[i] = sourceCity
 		
 	end
@@ -148,6 +150,7 @@ function aTable.createFrames()
                 button:Enable()
                 button:SetScript("OnClick", function(self, button)
                     selectedCity = aTable.sortedCities[idx]
+					-- update dest cities for the clicked city
                     mmf.DestScrollFrameUpdate(selectedCity)
                     end)
                 button.text = button:GetFontString() or button:CreateFontString(nil,"ARTWORK","GameFontNormal")
@@ -193,11 +196,12 @@ function aTable.createFrames()
 	
 	
     function mmf.DestScrollFrameUpdate(source)
-        local offset = FauxScrollFrame_GetOffset(mmf.destScrollFrame)
+		-- for k,v in pairs(aTable.cityAlphabetTable) do
+			-- print(k,v)
+		-- end
+	
+		local offset = FauxScrollFrame_GetOffset(mmf.destScrollFrame)
         --FauxScrollFrame_Update(mmf.destScrollFrame, #aTable.sortedPaths, NUM_LINES, LINE_HEIGHT)
-        -- debugg print when clicking dest city
-        --print("--------")
-        --print(source)
         local paths = aTable.createSortedTable(aTable.paths[source])
         
         if paths ~= nil then
@@ -238,13 +242,13 @@ function aTable.createFrames()
 	
     function mmf.OnEvent(self, event)
         -- sorted table of all the cities
-        aTable.sortedCities = aTable.createSortedTable(aTable.cities, 1)
+        aTable.sortedCities, aTable.cityAlphabetTable = aTable.createSortedTable(aTable.cities, 1)
 		-- sorted table of paths between cities
         aTable.sortedPaths = aTable.createSortedTable(aTable.paths)
 		-- table containing the index value of each new alphabet word.
 		-- ex: cityAlphabetTable[d] = 242. The first 'd' word is at index 242.
 		-- this can be used for efficient searching of cities
-		aTable.cityAlphabetTable = aTable.createAlphabetTable(aTable.sortedCities)
+		--aTable.cityAlphabetTable = aTable.createAlphabetTable(aTable.sortedCities)
         mmf.sourceScrollFrame.ScrollBar:SetValue(0)
         mmf.SourceScrollFrameUpdate()
         mmf.destScrollFrame.ScrollBar:SetValue(0)
@@ -265,8 +269,8 @@ end
 function aTable.slashCommands()
 	SLASH_MANMAPS1 = "/manmaps"
 	SLASH_MANMAPS2 = "/manmap"
-	SLASH_MANMAPS3 = "/mmap"
-	SLASH_MANMAPS4 = "/mmaps"
+	SLASH_MANMAPS3 = "/mmaps"
+	SLASH_MANMAPS4 = "/mmap"
 	SlashCmdList["MANMAPS"] = function(message)
 		if mmf:IsShown() then mmf:Hide() else mmf:Show() end
 	end

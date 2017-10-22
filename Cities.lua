@@ -1,51 +1,63 @@
 local aName, aTable = ...
 
--- takes an array and returns it as a sorted table.
+
+--[[ Takes an array and returns it as a sorted table.
+	If "indexing" (bool) is enabled, it will also return
+	a second array that contains the position where each letter
+	starts. ex: alphabetIndex['c'] = 106 would mean that 'c' words 
+	start at the 106th city. This will be used for efficient 
+	searching of index ranges. --]]
 function aTable.createSortedTable(array, indexing)
     if array ~= nil then
-        local temp = {}
+        local temp = {}               -- array to return
+		local alphabetIndex = {}      -- alphabetIndex['a'..'b'..'c'..etc]
+		local letter                  -- first letter of the city
+		local count = 1               -- index of "letter"
+		local STRlower = string.lower -- local scoping of external local
+		local STRchar = string.char   -- ''
+		
         for k in pairs(array) do
 			table.insert(temp, k)
+			if indexing then
+				letter = STRlower(k):sub(1,1)
+				-- collect # of occurences of each letter
+				alphabetIndex[letter] = (alphabetIndex[letter] or 0) + 1
+			end
         end
         table.sort(temp)
-        return temp
+		
+		-- alphabetIndex[] is now used to store the actual index position where each new letter starts
+		if indexing then
+			for i=97,122 do --ascii 'a' to 'z'
+				letter = STRchar(i)
+				local occurences = (alphabetIndex[letter] or 0)
+				alphabetIndex[letter] = count
+				count = count + occurences
+			end
+			return temp, alphabetIndex
+		else
+			return temp
+		end
     else
         print("WIP: No Cities")
     end
 end
 
 
--- this function assumes it is being given a sorted table.
--- aTable.createSortedTable(array) can be used to produce sorted tables.
-function aTable.createAlphabetTable(table)
-	local temp = {}
-	local letter
-	-- efficient local scoping of external locals
-	local lower = string.lower
-	for k,v in ipairs(table) do
-		-- if a new first letter is seen, insert its index in the table
-		if lower(v):sub(1,1) ~= letter then
-			letter = lower(v):sub(1,1)
-			temp[letter] = k
+-- boolean check if the city leads to nowhere
+function aTable.deadEnd(city)
+	if aTable.paths[city] then
+		for k in pairs(aTable.paths[city]) do
+			if k == nil then
+				print("Dead End")
+				return true
+			else
+				print("Not Dead End")
+				return false
+			end
 		end
 	end
-	return temp
 end
-
--- Check if the city leads to nowhere
-function aTable.deadEnd(city)
-        if aTable.paths[city] then
-            for k in pairs(aTable.paths[city]) do
-                if k == nil then
-                    print("Dead End")
-                    return true
-                else
-                    print("Not Dead End")
-                    return false
-                end
-            end
-        end
-    end
 
 
 local function scanBags(item)
