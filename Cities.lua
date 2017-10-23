@@ -13,7 +13,7 @@ function aTable.createSortedTable(array, indexing)
 		local alphabetIndex = {}      -- alphabetIndex['a'..'b'..'c'..etc]
 		local letter                  -- first letter of the city
 		local count = 1               -- index of "letter"
-		local STRlower = string.lower -- local scoping of external local
+		local STRlower = string.lower -- local scoping of a global
 		local STRchar = string.char   -- ''
 		
         for k in pairs(array) do
@@ -26,11 +26,12 @@ function aTable.createSortedTable(array, indexing)
         end
         table.sort(temp)
 		
-		-- alphabetIndex[] is now used to store the actual index position where each new letter starts
+		-- alphabetIndex[] is converted to now store the index 
+		-- position where each new letter starts.
 		if indexing then
 			for i=97,122 do --ascii 'a' to 'z'
 				letter = STRchar(i)
-				local occurences = (alphabetIndex[letter] or 0)
+				local occurences = (alphabetIndex[letter] or 0) -- save old value of aI[]
 				alphabetIndex[letter] = count
 				count = count + occurences
 			end
@@ -39,7 +40,7 @@ function aTable.createSortedTable(array, indexing)
 			return temp
 		end
     else
-        print("WIP: No Cities")
+        print("This city has no connecting destinations")
     end
 end
 
@@ -60,7 +61,7 @@ function aTable.deadEnd(city)
 end
 
 
-local function scanBags(item)
+function scanBags(item)
 	-- TODO: code to scan bags for item, and return its cooldown (if return is nil, then item is not in bags).
 		-- -also scan toys for portals
 end
