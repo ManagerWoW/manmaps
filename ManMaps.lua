@@ -1,4 +1,3 @@
--- Local Table
 local aName, aTable = ...
 
 function aTable.OnEvent(self, event, ...)
@@ -7,7 +6,6 @@ function aTable.OnEvent(self, event, ...)
 		if addonName == "ManMaps" then
             aTable.slashCommands()
 			aTable.createFrames()
-			--aTable.populateCities()
 		end
 	end
 end

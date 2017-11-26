@@ -3,13 +3,12 @@ local aName, aTable = ...
 
 --[[ Takes an array and returns it as a sorted table.
 	If "indexing" (bool) is enabled, it will also return
-	a second array that contains the position where each letter
+	a second array that contains the index where each letter (ABC)
 	starts. ex: alphabetIndex['c'] = 106 would mean that 'c' words 
-	start at the 106th city. This will be used for efficient 
-	searching of index ranges. --]]
+	start at the 106th city. This will be used for searching. --]]
 function aTable.createSortedTable(array, indexing)
     if array ~= nil then
-        local temp = {}               -- array to return
+        local sortedTable = {}               -- array to return
 		local alphabetIndex = {}      -- alphabetIndex['a'..'b'..'c'..etc]
 		local letter                  -- first letter of the city
 		local count = 1               -- index of "letter"
@@ -17,14 +16,14 @@ function aTable.createSortedTable(array, indexing)
 		local STRchar = string.char   -- ''
 		
         for k in pairs(array) do
-			table.insert(temp, k)
+			table.insert(sortedTable, k)
 			if indexing then
 				letter = STRlower(k):sub(1,1)
 				-- collect # of occurences of each letter
 				alphabetIndex[letter] = (alphabetIndex[letter] or 0) + 1
 			end
         end
-        table.sort(temp)
+        table.sort(sortedTable)
 		
 		-- alphabetIndex[] is converted to now store the index 
 		-- position where each new letter starts.
@@ -35,9 +34,9 @@ function aTable.createSortedTable(array, indexing)
 				alphabetIndex[letter] = count
 				count = count + occurences
 			end
-			return temp, alphabetIndex
+			return sortedTable, alphabetIndex
 		else
-			return temp
+			return sortedTable
 		end
     else
         print("This city has no connecting destinations")
@@ -60,6 +59,31 @@ function aTable.deadEnd(city)
 	end
 end
 
+function aTable.searchCity(self, userInput)
+	local text, firstLetter = self:GetText()
+	local matches = {}
+	if (userInput and (text ~= "")) then
+		text = string.lower(text)
+		
+		firstLetter = text:sub(1,1)
+		nextLetter  = string.char(string.byte(firstLetter) + 1)
+		-- city index ranges to search
+		local start = aTable.cityAlphabetTable[firstLetter]
+		local stop  = aTable.cityAlphabetTable[nextLetter]
+		
+		for i=start,stop do
+			-- TODO: early break logic to save time
+			-- compare user search text to cities
+			if (string.lower(aTable.sortedCities[i]):find("^"..text)) then
+				table.insert(matches, aTable.sortedCities[i])
+			end
+		end
+		table.sort(matches)
+		aTable.sourceScrollFrameUpdate(matches, true)
+	else
+		aTable.sourceScrollFrameUpdate()
+	end
+end
 
 function scanBags(item)
 	-- TODO: code to scan bags for item, and return its cooldown (if return is nil, then item is not in bags).

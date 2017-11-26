@@ -1,14 +1,19 @@
 local aName, aTable = ...
 local mmf -- Man Maps Frame
-local selectedCity -- source city that will be highlighted
+local selectedCity
+local currentSearchTable
+local SEARCH_TEXT = "Search: City Name"
+local SRC_NUM_LINES = 20    -- how many cities to display
+local SRC_LINE_HEIGHT = 15  -- spacing between city names
+local DEST_NUM_LINES = 20
+local DEST_LINE_HEIGHT = 15
+-- Sorted table of all the cities. More info in Cities.lua
+aTable.sortedCities, aTable.cityAlphabetTable = aTable.createSortedTable(aTable.cities, 1)
+-- Sorted table of paths between cities
+aTable.sortedPaths = aTable.createSortedTable(aTable.paths)
+
 
 --print(aTable.paths["Stormwind"]["Ironforge"]["flying"].dist)
---[[
-TODO:
-	-Clear search bar text on click
-	-Real-time search suggestions (how to display?)
-	-Set src/destFaux to clicked suggestion. Clear highlights
---]]
 
 function aTable.createFrames()
 
@@ -54,72 +59,81 @@ function aTable.createFrames()
 	mmf.Close = CreateFrame("Button", "ManMapsClose", mmf, "UIPanelCloseButton")
 	mmf.Close:SetPoint("TOPRIGHT", -9, -9)
 	
+	-- Home frame (for showing/hiding)
+	mmf.HomeFrame = CreateFrame("Frame", "ManMaps_HomeFrame", mmf)
+	mmf.HomeFrame:SetPoint(mmf:GetPoint())
+	mmf.HomeFrame:SetSize(mmf:GetSize())
+	
 	-- Home tab
-	mmf.mainTab = CreateFrame("Button", "ManMaps_Home", mmf, "UIPanelButtonTemplate")
-	mmf.mainTab:SetPoint("TOPLEFT", 13, -15)
-	mmf.mainTab:SetFrameLevel(mmf:GetFrameLevel()+1)
-	mmf.mainTab:SetScript("OnClick", function(self, button)
-		mmf.sourceScrollFrame:Show()
-        mmf.destScrollFrame:Show() end)
+	mmf.MainTab = CreateFrame("Button", "ManMaps_HomeTab", mmf, "UIPanelButtonTemplate")
+	mmf.MainTab:SetPoint("TOPLEFT", 13, -15)
+	mmf.MainTab:SetFrameLevel(mmf:GetFrameLevel()+1)
+	mmf.MainTab:SetScript("OnClick", function(self, button)
+		mmf.HomeFrame:Show() end)
 	-- Font String
-	mmf.mainTab.Text = mmf.mainTab.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	mmf.mainTab.Text:SetText("Home")
-	mmf.mainTab.Text:SetPoint("CENTER", ManMaps_Home, "CENTER")
-	mmf.mainTab:SetFontString(mmf.mainTab.Text)
-	mmf.mainTab:SetSize(mmf.mainTab.Text:GetStringWidth()+10,mmf.mainTab.Text:GetStringHeight()+10)
+	mmf.MainTab.Text = mmf.MainTab.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	mmf.MainTab.Text:SetText("Home")
+	mmf.MainTab.Text:SetPoint("CENTER", ManMaps_HomeTab, "CENTER")
+	mmf.MainTab:SetFontString(mmf.MainTab.Text)
+	mmf.MainTab:SetSize(mmf.MainTab.Text:GetStringWidth()+10,mmf.MainTab.Text:GetStringHeight()+10)
+	
+	-- Routes frame (for showing/hiding)
+	mmf.RoutesFrame = CreateFrame("Frame", "ManMaps_RoutesFrame", mmf)
+	mmf.RoutesFrame:SetPoint(mmf:GetPoint())
+	mmf.RoutesFrame:SetSize(mmf:GetSize())
 
 	-- Routes tab
-	mmf.RoutesTab = CreateFrame("Button", "ManMaps_Routes", mmf.mainTab, "UIPanelButtonTemplate")
-	mmf.RoutesTab:SetPoint("TOPLEFT", mmf.mainTab, "TOPRIGHT")
+	mmf.RoutesTab = CreateFrame("Button", "ManMaps_RoutesTab", mmf.MainTab, "UIPanelButtonTemplate")
+	mmf.RoutesTab:SetPoint("TOPLEFT", mmf.MainTab, "TOPRIGHT")
 	mmf.RoutesTab:SetFrameLevel(mmf:GetFrameLevel()+1)
 	mmf.RoutesTab:SetScript("OnClick", function(self, button)
-		mmf.sourceScrollFrame:Hide() 
-        mmf.destScrollFrame:Hide() end)
+		mmf.HomeFrame:Hide() end)
 	-- Font String
 	mmf.RoutesTab.Text = mmf.RoutesTab.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	mmf.RoutesTab.Text:SetText("Routes")
-	mmf.RoutesTab.Text:SetPoint("CENTER", ManMaps_Routes, "CENTER")
+	mmf.RoutesTab.Text:SetPoint("CENTER", ManMaps_RoutesTab, "CENTER")
 	mmf.RoutesTab:SetFontString(mmf.RoutesTab.Text)
 	mmf.RoutesTab:SetSize(mmf.RoutesTab.Text:GetStringWidth()+10,mmf.RoutesTab.Text:GetStringHeight()+10)
 	
 	
 	-- Search bar
-	mmf.searchBar = CreateFrame("EditBox", "ManMaps_SearchBarFrame", ManMapsFrame, "InputBoxTemplate")
-	mmf.searchBar:SetFontObject(GameFontHighlight)
-	mmf.searchBar:SetPoint("TOPLEFT", mmf.mainTab, "BOTTOMLEFT", 10, -10)
-	mmf.searchBar:SetSize(180,15)
+	mmf.SearchBar = CreateFrame("EditBox", "ManMaps_SearchBarFrame", mmf.HomeFrame, "InputBoxTemplate")
+	mmf.SearchBar:SetFontObject(GameFontHighlight)
+	mmf.SearchBar:SetPoint("TOPLEFT", mmf.MainTab, "BOTTOMLEFT", 10, -10)
+	mmf.SearchBar:SetSize(180,15)
 	--ManMaps_SearchBarFrame.Middle:SetHeight(20)
 	--ManMaps_SearchBarFrame.Left:SetSize(8,20)
 	--ManMaps_SearchBarFrame.Right:SetSize(200,50)
-	mmf.searchBar:SetText("Enter City Name")
-	mmf.searchBar.Text = mmf.searchBar:GetFontObject()
-	mmf.searchBar:SetAutoFocus(false)
-	mmf.searchBar:Show()
+	mmf.SearchBar:SetText(SEARCH_TEXT)
+	mmf.SearchBar.Text = mmf.SearchBar:GetFontObject()
+	mmf.SearchBar:SetAutoFocus(false)
+	mmf.SearchBar:SetScript("OnTextChanged", aTable.searchCity)
+	mmf.SearchBar:Show()
 	
 	
 	-- FauxScrollframe for source locations
-	mmf.sourceScrollFrame = CreateFrame("ScrollFrame", "ManMaps_SourceScrollFrame", ManMapsFrame, "FauxScrollFrameTemplate")
-	mmf.sourceScrollFrame:SetPoint("TOPLEFT", 20, -100)
-	mmf.sourceScrollFrame:SetPoint("BOTTOMRIGHT", -700, 20)
-	mmf.sourceScrollFrame:SetBackdrop({
+	mmf.SourceScrollFrame = CreateFrame("ScrollFrame", "ManMaps_SourceScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
+	mmf.SourceScrollFrame:SetPoint("TOPLEFT", 20, -100)
+	mmf.SourceScrollFrame:SetPoint("BOTTOMRIGHT", -700, 20)
+	mmf.SourceScrollFrame:SetBackdrop({
 		bgFile="Interface\\Addons\\ManMaps\\media\\White",
 		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
 		tile=1, tileSize=1, edgeSize=1, 
 		insets={left=12, right=12, top=12, bottom=12}})
-	mmf.sourceScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
-	mmf.sourceScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
+	mmf.SourceScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
+	mmf.SourceScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
     
 	-- FauxScrollframe for desinations
-	mmf.destScrollFrame = CreateFrame("ScrollFrame", "ManMaps_DestinationScrollFrame", ManMapsFrame, "FauxScrollFrameTemplate")
-	mmf.destScrollFrame:SetPoint("TOPLEFT", mmf.sourceScrollFrame, "TOPRIGHT", 30, 0)
-	mmf.destScrollFrame:SetPoint("BOTTOMRIGHT", -480, 20)
-	mmf.destScrollFrame:SetBackdrop({
+	mmf.DestScrollFrame = CreateFrame("ScrollFrame", "ManMaps_DestinationScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
+	mmf.DestScrollFrame:SetPoint("TOPLEFT", mmf.SourceScrollFrame, "TOPRIGHT", 30, 0)
+	mmf.DestScrollFrame:SetPoint("BOTTOMRIGHT", -480, 20)
+	mmf.DestScrollFrame:SetBackdrop({
 		bgFile="Interface\\Addons\\ManMaps\\media\\White",
 		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
 		tile=1, tileSize=1, edgeSize=1, 
 		insets={left=1, right=1, top=1, bottom=1}})
-	mmf.destScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
-	mmf.destScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
+	mmf.DestScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
+	mmf.DestScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
     
 
 
@@ -133,113 +147,70 @@ function aTable.createFrames()
     --
     -- Source Scroll Frame
 	--
-    local SRC_NUM_LINES = 20    -- how many cities to display
-    local SRC_LINE_HEIGHT = 15  -- spacing between city names
-	mmf.sourceScrollFrame.sources = {} -- list of source cities
+
+	mmf.SourceScrollFrame.sources = {} -- list of source cities
 	
 	for i=1,SRC_NUM_LINES do
-		local sourceCity = CreateFrame("Button", "$parentCity"..i, mmf.sourceScrollFrame, "UIPanelButtonTemplate")
+		local sourceCity = CreateFrame("Button", "$parentCity"..i, mmf.SourceScrollFrame, "UIPanelButtonTemplate")
         sourceCity:SetHeight(SRC_LINE_HEIGHT)
-        sourceCity:SetWidth(mmf.sourceScrollFrame:GetWidth())
+        sourceCity:SetWidth(mmf.SourceScrollFrame:GetWidth())
 		sourceCity:SetPoint("TOPLEFT", 0, -(i-1)*SRC_LINE_HEIGHT-4)
-        -- removes the button background
-        sourceCity:DisableDrawLayer("BACKGROUND")
-		-- disable the button until it is needed
-        sourceCity:Disable()
-		mmf.sourceScrollFrame.sources[i] = sourceCity
-		
+        sourceCity:DisableDrawLayer("BACKGROUND") -- remove background
+        sourceCity:Disable() -- disable until it is needed
+		mmf.SourceScrollFrame.sources[i] = sourceCity
 	end
 	
 
 
-    mmf.sourceScrollFrame:SetScript("OnShow", mmf.SourceScrollFrameUpdate)
-    mmf.sourceScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, SRC_LINE_HEIGHT, mmf.SourceScrollFrameUpdate)
+    mmf.HomeFrame:SetScript("OnShow", aTable.sourceScrollFrameUpdate)
+    mmf.SourceScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        FauxScrollFrame_OnVerticalScroll(self, offset, SRC_LINE_HEIGHT, aTable.sourceScrollFrameUpdate)
     end)
-	
-	
-    function mmf.SourceScrollFrameUpdate()
-        local offset = FauxScrollFrame_GetOffset(mmf.sourceScrollFrame)
-        FauxScrollFrame_Update(mmf.sourceScrollFrame, #aTable.sortedCities, SRC_NUM_LINES, SRC_LINE_HEIGHT)
-        
-        for i=1, SRC_NUM_LINES do
-            local idx = offset+i
-            local button = mmf.sourceScrollFrame.sources[i]
-			
-            if idx <= #aTable.sortedCities then
-                -- button was disable on creation until ready to be used
-                button:Enable()
-				button:UnlockHighlight()
-                button:SetScript("OnClick", function(self, buttonPress)
-                    selectedCity = aTable.sortedCities[idx]
-					mmf.UnlockButtonHighlights() -- clear all the highlights
-					button:LockHighlight()
-					-- update dest cities for the clicked city
-                    mmf.DestScrollFrameUpdate(selectedCity)
-                    end)
-				-- keep the selectedCity highlighted on scroll
-				if aTable.sortedCities[idx] == selectedCity then
-					button:LockHighlight() 
-				end
-                button.text = button:GetFontString() or button:CreateFontString(nil,"ARTWORK","GameFontNormal")
-                button.text:SetPoint("LEFT", button, "LEFT", 6, 0)
-                button.text:SetWidth(mmf.sourceScrollFrame:GetWidth()-10)
-                button.text:SetJustifyH("LEFT")
-                button.text:SetWordWrap(false)
-                button.text:SetText(aTable.sortedCities[idx])
-                button.text:SetTextColor(1,.7,0,1)
-                button:Show()
-            else
-                button:Hide()
-            end
-        end
-    end
     
     
     --
     -- Destination Scroll Frame
 	--
-    local DEST_NUM_LINES = 20 -- how many cities to display
-    local DEST_LINE_HEIGHT = 15 -- spacing between city names
-	mmf.destScrollFrame.destinations = {} -- list of destination cities
+	mmf.DestScrollFrame.destinations = {} -- list of destination cities
 	
 	for i=1,DEST_NUM_LINES do
-		local destCity = CreateFrame("Button", "$parentCity"..i, mmf.destScrollFrame, "UIPanelButtonTemplate")
+		local destCity = CreateFrame("Button", "$parentCity"..i, mmf.DestScrollFrame, "UIPanelButtonTemplate")
         destCity:SetHeight(DEST_LINE_HEIGHT)
-        destCity:SetWidth(mmf.destScrollFrame:GetWidth())
+        destCity:SetWidth(mmf.DestScrollFrame:GetWidth())
 		destCity:SetPoint("TOPLEFT", 6, -(i-1)*DEST_LINE_HEIGHT-4)
         -- removes the button background
         destCity:DisableDrawLayer("BACKGROUND")
         -- disable the button until it is needed
         destCity:Disable()
-		mmf.destScrollFrame.destinations[i] = destCity
+		mmf.DestScrollFrame.destinations[i] = destCity
 	end
 	
 
 
-    --mmf.destScrollFrame:SetScript("OnShow", mmf.DestScrollFrameUpdate)
-    mmf.destScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, DEST_LINE_HEIGHT, mmf.DestScrollFrameUpdate)
+    mmf.DestScrollFrame:SetScript("OnShow", mmf.destScrollFrameUpdate)
+    mmf.DestScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        FauxScrollFrame_OnVerticalScroll(self, offset, DEST_LINE_HEIGHT, mmf.destScrollFrameUpdate)
     end)
 	
 	
-    function mmf.DestScrollFrameUpdate(source)
-		local offset = FauxScrollFrame_GetOffset(mmf.destScrollFrame)
-        --FauxScrollFrame_Update(mmf.destScrollFrame, #aTable.sortedPaths, DEST_NUM_LINES, DEST_LINE_HEIGHT)
+    function mmf.destScrollFrameUpdate(source)
+		local offset = FauxScrollFrame_GetOffset(mmf.DestScrollFrame)
+        FauxScrollFrame_Update(mmf.DestScrollFrame, #aTable.sortedPaths, DEST_NUM_LINES, DEST_LINE_HEIGHT)
+		mmf.DestScrollFrame:Show() -- Blizzard bug hides the scroll frame not scroll bar
         local paths = aTable.createSortedTable(aTable.paths[source])
         
         if paths ~= nil then
             for i=1, DEST_NUM_LINES do
                 local idx = offset+i
-                local button = mmf.destScrollFrame.destinations[i]
+                local button = mmf.DestScrollFrame.destinations[i]
                 
                 if idx <= #paths then
                     button:SetScript("OnClick", function(self, buttonPress)
                         selectedCity = paths[idx]
-                        mmf.DestScrollFrameUpdate(selectedCity) end)
+                        mmf.destScrollFrameUpdate(selectedCity) end)
                     button.text = button:GetFontString() or button:CreateFontString(nil,"ARTWORK","GameFontNormal")
                     button.text:SetPoint("LEFT", button, "LEFT")
-                    button.text:SetWidth(mmf.destScrollFrame:GetWidth()-10)
+                    button.text:SetWidth(mmf.DestScrollFrame:GetWidth()-10)
                     button.text:SetJustifyH("LEFT")
                     button.text:SetWordWrap(false)
                     button.text:SetText(paths[idx])
@@ -259,35 +230,92 @@ function aTable.createFrames()
     
     function mmf.DestScrollFrameClear()
         for i=1,DEST_NUM_LINES do
-            local button = mmf.destScrollFrame.destinations[i]
+            local button = mmf.DestScrollFrame.destinations[i]
             button:Hide()
         end
     end
 	
 	function mmf.UnlockButtonHighlights()
 		for i=1,SRC_NUM_LINES do
-			local button = mmf.sourceScrollFrame.sources[i]
+			local button = mmf.SourceScrollFrame.sources[i]
 			button:UnlockHighlight()
 		end
 	end
 	
     function mmf.OnEvent(self, event)
-        -- sorted table of all the cities. as well as a table
-		-- containing the index value of each new alphabet word.
-		-- ex: cityAlphabetTable[d] = 242. The first 'd' word is at index 242.
-		-- this can be used for efficiently searching cities.
-        aTable.sortedCities, aTable.cityAlphabetTable = aTable.createSortedTable(aTable.cities, 1)
-		-- sorted table of paths between cities
-        aTable.sortedPaths = aTable.createSortedTable(aTable.paths)
-        mmf.sourceScrollFrame.ScrollBar:SetValue(0)
-        mmf.SourceScrollFrameUpdate()
-        mmf.destScrollFrame.ScrollBar:SetValue(0)
-        --mmf.DestScrollFrameUpdate()
+        mmf.SourceScrollFrame.ScrollBar:SetValue(0)
+        mmf.DestScrollFrame.ScrollBar:SetValue(0)
     end
 
     mmf:SetScript("OnEvent", mmf.OnEvent)
     mmf:HookScript("OnShow", mmf.OnEvent)
 
+end
+
+function aTable.sourceScrollFrameUpdate(table, searching)
+	-- keep track of city table used to search
+	if searching == true then 
+		currentSearchTable = table
+	end
+	
+	-- if something is being searched, use the stored table
+	if (mmf.SearchBar:GetText() ~= SEARCH_TEXT) and 
+	  (mmf.SearchBar:GetText() ~= "") then
+		table = currentSearchTable
+	else -- else default to all cities
+		table = aTable.sortedCities
+		currentSearchTable = nil
+	end
+	
+	local offset = FauxScrollFrame_GetOffset(mmf.SourceScrollFrame)
+	FauxScrollFrame_Update(mmf.SourceScrollFrame, #table, SRC_NUM_LINES, SRC_LINE_HEIGHT)
+	mmf.SourceScrollFrame:Show() -- Blizzard _Update bug
+	
+	for i=1, SRC_NUM_LINES do
+		local idx = offset+i
+		local button = mmf.SourceScrollFrame.sources[i]
+		if idx <= #table then
+			-- button was disable on creation until ready to be used
+			button:Enable()
+			button:UnlockHighlight()
+			button:SetScript("OnClick", function(self, buttonPress)
+				selectedCity = table[idx]
+				mmf.UnlockButtonHighlights() -- clear all the highlights
+				button:LockHighlight()
+				-- update dest cities for the clicked city
+				mmf.destScrollFrameUpdate(selectedCity)
+				end)
+			-- keep the selectedCity highlighted on scroll
+			if table[idx] == selectedCity then
+				button:LockHighlight() 
+			end
+			button.text = button:GetFontString() or button:CreateFontString(nil,"ARTWORK","GameFontNormal")
+			button.text:SetPoint("LEFT", button, "LEFT", 6, 0)
+			button.text:SetWidth(mmf.SourceScrollFrame:GetWidth()-10)
+			button.text:SetJustifyH("LEFT")
+			button.text:SetWordWrap(false)
+			button.text:SetText(table[idx])
+			button.text:SetTextColor(1,.7,0,1)
+			button:Show()
+		else
+			button:Hide()
+		end
+	end
+end
+
+function FauxScrollFrame_OnVerticalScroll(self, value, itemHeight, updateFunction)
+	local scrollbar = _G[self:GetName().."ScrollBar"]
+	scrollbar:SetValue(value);
+	self.offset = floor((value / itemHeight) + 0.5)
+	-- if not enough cities for scrolling, set offset to 0
+	if currentSearchTable and (#currentSearchTable < SRC_NUM_LINES) then
+		scrollbar:SetValue(0)
+		self.offset = 0
+		aTable.sourceScrollFrameUpdate()
+	end
+	if (updateFunction) then
+		updateFunction()
+	end
 end
 
 
