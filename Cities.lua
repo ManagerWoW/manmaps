@@ -56,6 +56,8 @@ function aTable.deadEnd(city)
 				return false
 			end
 		end
+	else
+		print("No city exists")
 	end
 end
 

@@ -1,7 +1,6 @@
 local aName, aTable = ...
 local mmf -- Man Maps Frame
-local selectedCity
-local currentSearchTable
+local selectedCity, currentSearchTable
 local SEARCH_TEXT = "Search: City Name"
 local SRC_NUM_LINES = 20    -- how many cities to display
 local SRC_LINE_HEIGHT = 15  -- spacing between city names
@@ -63,6 +62,8 @@ function aTable.createFrames()
 	mmf.HomeFrame = CreateFrame("Frame", "ManMaps_HomeFrame", mmf)
 	mmf.HomeFrame:SetPoint(mmf:GetPoint())
 	mmf.HomeFrame:SetSize(mmf:GetSize())
+	-- Update source/dest city tables when HomeFrame is shown
+	mmf.HomeFrame:SetScript("OnShow", aTable.sourceScrollFrameUpdate)
 	
 	-- Home tab
 	mmf.MainTab = CreateFrame("Button", "ManMaps_HomeTab", mmf, "UIPanelButtonTemplate")
@@ -111,7 +112,7 @@ function aTable.createFrames()
 	mmf.SearchBar:Show()
 	
 	
-	-- FauxScrollframe for source locations
+	-- FauxScrollframe for sources
 	mmf.SourceScrollFrame = CreateFrame("ScrollFrame", "ManMaps_SourceScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
 	mmf.SourceScrollFrame:SetPoint("TOPLEFT", 20, -100)
 	mmf.SourceScrollFrame:SetPoint("BOTTOMRIGHT", -700, 20)
@@ -122,7 +123,21 @@ function aTable.createFrames()
 		insets={left=12, right=12, top=12, bottom=12}})
 	mmf.SourceScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
 	mmf.SourceScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
+    mmf.SourceScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        FauxScrollFrame_OnVerticalScroll(self, offset, SRC_LINE_HEIGHT, aTable.sourceScrollFrameUpdate)
+    end)
     
+	-- Buttons for SourceScrollFrame
+	mmf.SourceScrollFrame.sources = {} -- list of source cities
+	for i=1,SRC_NUM_LINES do
+		local sourceCity = CreateFrame("Button", "$parentCity"..i, mmf.SourceScrollFrame, "UIPanelButtonTemplate")
+        sourceCity:SetHeight(SRC_LINE_HEIGHT)
+        sourceCity:SetWidth(mmf.SourceScrollFrame:GetWidth())
+		sourceCity:SetPoint("TOPLEFT", 0, -(i-1)*SRC_LINE_HEIGHT-4)
+        sourceCity:DisableDrawLayer("BACKGROUND") -- remove background
+        sourceCity:Disable() -- disable until it is needed
+		mmf.SourceScrollFrame.sources[i] = sourceCity
+	end
 	-- FauxScrollframe for desinations
 	mmf.DestScrollFrame = CreateFrame("ScrollFrame", "ManMaps_DestinationScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
 	mmf.DestScrollFrame:SetPoint("TOPLEFT", mmf.SourceScrollFrame, "TOPRIGHT", 30, 0)
@@ -134,45 +149,12 @@ function aTable.createFrames()
 		insets={left=1, right=1, top=1, bottom=1}})
 	mmf.DestScrollFrame:SetBackdropColor(0.1,0.1,0.1,1)
 	mmf.DestScrollFrame:SetBackdropBorderColor(0.3,0.3,0.3,1)
-    
-
-
-    
-	--------------------------------------
-	--------------------------------------
-	--         Populating Frames        --
-	--------------------------------------
-	--------------------------------------
-	
-    --
-    -- Source Scroll Frame
-	--
-
-	mmf.SourceScrollFrame.sources = {} -- list of source cities
-	
-	for i=1,SRC_NUM_LINES do
-		local sourceCity = CreateFrame("Button", "$parentCity"..i, mmf.SourceScrollFrame, "UIPanelButtonTemplate")
-        sourceCity:SetHeight(SRC_LINE_HEIGHT)
-        sourceCity:SetWidth(mmf.SourceScrollFrame:GetWidth())
-		sourceCity:SetPoint("TOPLEFT", 0, -(i-1)*SRC_LINE_HEIGHT-4)
-        sourceCity:DisableDrawLayer("BACKGROUND") -- remove background
-        sourceCity:Disable() -- disable until it is needed
-		mmf.SourceScrollFrame.sources[i] = sourceCity
-	end
-	
-
-
-    mmf.HomeFrame:SetScript("OnShow", aTable.sourceScrollFrameUpdate)
-    mmf.SourceScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, SRC_LINE_HEIGHT, aTable.sourceScrollFrameUpdate)
+    mmf.DestScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        FauxScrollFrame_OnVerticalScroll(self, offset, DEST_LINE_HEIGHT, destScrollFrameUpdate)
     end)
-    
-    
-    --
-    -- Destination Scroll Frame
-	--
-	mmf.DestScrollFrame.destinations = {} -- list of destination cities
 	
+	-- Buttons for DestScrollFrame
+	mmf.DestScrollFrame.destinations = {} -- list of destination cities
 	for i=1,DEST_NUM_LINES do
 		local destCity = CreateFrame("Button", "$parentCity"..i, mmf.DestScrollFrame, "UIPanelButtonTemplate")
         destCity:SetHeight(DEST_LINE_HEIGHT)
@@ -184,63 +166,8 @@ function aTable.createFrames()
         destCity:Disable()
 		mmf.DestScrollFrame.destinations[i] = destCity
 	end
-	
-
-
-    mmf.DestScrollFrame:SetScript("OnShow", mmf.destScrollFrameUpdate)
-    mmf.DestScrollFrame:SetScript("OnVerticalScroll", function(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, DEST_LINE_HEIGHT, mmf.destScrollFrameUpdate)
-    end)
-	
-	
-    function mmf.destScrollFrameUpdate(source)
-		local offset = FauxScrollFrame_GetOffset(mmf.DestScrollFrame)
-        FauxScrollFrame_Update(mmf.DestScrollFrame, #aTable.sortedPaths, DEST_NUM_LINES, DEST_LINE_HEIGHT)
-		mmf.DestScrollFrame:Show() -- Blizzard bug hides the scroll frame not scroll bar
-        local paths = aTable.createSortedTable(aTable.paths[source])
-        
-        if paths ~= nil then
-            for i=1, DEST_NUM_LINES do
-                local idx = offset+i
-                local button = mmf.DestScrollFrame.destinations[i]
-                
-                if idx <= #paths then
-                    button:SetScript("OnClick", function(self, buttonPress)
-                        selectedCity = paths[idx]
-                        mmf.destScrollFrameUpdate(selectedCity) end)
-                    button.text = button:GetFontString() or button:CreateFontString(nil,"ARTWORK","GameFontNormal")
-                    button.text:SetPoint("LEFT", button, "LEFT")
-                    button.text:SetWidth(mmf.DestScrollFrame:GetWidth()-10)
-                    button.text:SetJustifyH("LEFT")
-                    button.text:SetWordWrap(false)
-                    button.text:SetText(paths[idx])
-                    button.text:SetTextColor(1,.7,0,1)
-                    button.tooltipText = "Hello"
-                    -- button was disable on creation until ready to be used
-                    button:Enable()
-                    button:Show()
-                else
-                    button:Hide()
-                end
-            end
-        else
-            mmf.DestScrollFrameClear()
-        end
-    end
     
-    function mmf.DestScrollFrameClear()
-        for i=1,DEST_NUM_LINES do
-            local button = mmf.DestScrollFrame.destinations[i]
-            button:Hide()
-        end
-    end
-	
-	function mmf.UnlockButtonHighlights()
-		for i=1,SRC_NUM_LINES do
-			local button = mmf.SourceScrollFrame.sources[i]
-			button:UnlockHighlight()
-		end
-	end
+    
 	
     function mmf.OnEvent(self, event)
         mmf.SourceScrollFrame.ScrollBar:SetValue(0)
@@ -251,6 +178,74 @@ function aTable.createFrames()
     mmf:HookScript("OnShow", mmf.OnEvent)
 
 end
+
+
+
+	--------------------------------------
+	--------------------------------------
+	--          Helper Methods          --
+	--------------------------------------
+	--------------------------------------
+
+-- Hide all destination cities
+local function DestScrollFrameHide()
+	for i=1,DEST_NUM_LINES do
+		local button = mmf.DestScrollFrame.destinations[i]
+		button:Hide()
+	end
+end
+
+
+-- Clear highlight from all cities
+local function UnlockButtonHighlights()
+	for i=1,SRC_NUM_LINES do
+		local button = mmf.SourceScrollFrame.sources[i]
+		button:UnlockHighlight()
+	end
+end
+
+
+local function destScrollFrameUpdate(source)
+	local offset = FauxScrollFrame_GetOffset(mmf.DestScrollFrame)
+	FauxScrollFrame_Update(mmf.DestScrollFrame, #aTable.sortedPaths, 
+	  DEST_NUM_LINES, DEST_LINE_HEIGHT)
+	-- Blizzard bug: FSF_U hides the scroll frame not scroll bar
+	mmf.DestScrollFrame:Show() 
+	
+	local paths = aTable.createSortedTable(aTable.paths[source])
+	
+	if paths ~= nil then
+		for i=1, DEST_NUM_LINES do
+			local idx = offset+i
+			local button = mmf.DestScrollFrame.destinations[i]
+			
+			if idx <= #paths then
+				button:SetScript("OnClick", function(self, buttonPress)
+					selectedCity = paths[idx]
+					destScrollFrameUpdate(selectedCity) end)
+				button.text = button:GetFontString() or button:CreateFontString(nil,"ARTWORK","GameFontNormal")
+				button.text:SetPoint("LEFT", button, "LEFT")
+				button.text:SetWidth(mmf.DestScrollFrame:GetWidth()-10)
+				button.text:SetJustifyH("LEFT")
+				button.text:SetWordWrap(false)
+				button.text:SetText(paths[idx])
+				button.text:SetTextColor(1,.7,0,1)
+				----
+				---- CHANGE
+				----
+				button.tooltipText = "Hello"
+				-- button was disable on creation until ready to be used
+				button:Enable()
+				button:Show()
+			else
+				button:Hide()
+			end
+		end
+	else
+		DestScrollFrameHide()
+	end
+end
+
 
 function aTable.sourceScrollFrameUpdate(table, searching)
 	-- keep track of city table used to search
@@ -269,7 +264,8 @@ function aTable.sourceScrollFrameUpdate(table, searching)
 	
 	local offset = FauxScrollFrame_GetOffset(mmf.SourceScrollFrame)
 	FauxScrollFrame_Update(mmf.SourceScrollFrame, #table, SRC_NUM_LINES, SRC_LINE_HEIGHT)
-	mmf.SourceScrollFrame:Show() -- Blizzard _Update bug
+	-- Blizzard bug: FSF_U hides the scroll frame not scroll bar
+	mmf.SourceScrollFrame:Show() 
 	
 	for i=1, SRC_NUM_LINES do
 		local idx = offset+i
@@ -280,10 +276,10 @@ function aTable.sourceScrollFrameUpdate(table, searching)
 			button:UnlockHighlight()
 			button:SetScript("OnClick", function(self, buttonPress)
 				selectedCity = table[idx]
-				mmf.UnlockButtonHighlights() -- clear all the highlights
+				UnlockButtonHighlights() -- clear all the highlights
 				button:LockHighlight()
 				-- update dest cities for the clicked city
-				mmf.destScrollFrameUpdate(selectedCity)
+				destScrollFrameUpdate(selectedCity)
 				end)
 			-- keep the selectedCity highlighted on scroll
 			if table[idx] == selectedCity then
@@ -303,6 +299,7 @@ function aTable.sourceScrollFrameUpdate(table, searching)
 	end
 end
 
+
 function FauxScrollFrame_OnVerticalScroll(self, value, itemHeight, updateFunction)
 	local scrollbar = _G[self:GetName().."ScrollBar"]
 	scrollbar:SetValue(value);
@@ -319,11 +316,13 @@ function FauxScrollFrame_OnVerticalScroll(self, value, itemHeight, updateFunctio
 end
 
 
+
 	--------------------------------------
 	--------------------------------------
 	--          Slash Commands          --
 	--------------------------------------
 	--------------------------------------
+	
 function aTable.slashCommands()
 	SLASH_MANMAPS1 = "/manmaps"
 	SLASH_MANMAPS2 = "/manmap"
