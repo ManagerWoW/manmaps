@@ -1,5 +1,5 @@
 local aName, aTable = ...
-local mmf -- Man Maps Frame
+local mmf -- MapMan Frame
 local selectedCity, currentSearchTable
 local SEARCH_TEXT = "Search: City Name"
 local SRC_NUM_LINES = 20    -- how many cities to display
@@ -22,16 +22,16 @@ function aTable.createFrames()
 	--------------------------------------
 	--------------------------------------
 
--- List of variables/frames
--- mmf (ManMapsFrame; main addon frame)
+-- List of variables/frames:
+-- mmf (MapManFrame; main addon frame)
 -- routesf (RoutesFrame; frame section that displays all route results)
 
-	mmf = CreateFrame("Frame", "ManMapsFrame", UIParent)
+	mmf = CreateFrame("Frame", "MapManFrame", UIParent)
 
 	-- Setup background frame
 	mmf:SetPoint("CENTER",0,0)
 	mmf:SetBackdrop({
-		bgFile="Interface\\Addons\\ManMaps\\media\\White", 
+		bgFile="Interface\\Addons\\MapMan\\media\\White", 
 		edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border", 
 		tile=1, tileSize=32, edgeSize=32, 
 		insets={left=11, right=12, top=12, bottom=11}})
@@ -52,21 +52,21 @@ function aTable.createFrames()
 	mmf.Title:SetPoint("TOP",0,-15)
 	mmf.Title:SetFont("Fonts\\MORPHEUS.ttf",20)
 	mmf.Title:SetTextColor(1,.7,0,1)
-	mmf.Title:SetText("ManMaps")
+	mmf.Title:SetText("MapMan")
 
 	-- Close button for main frame
-	mmf.Close = CreateFrame("Button", "ManMapsClose", mmf, "UIPanelCloseButton")
+	mmf.Close = CreateFrame("Button", "MapManClose", mmf, "UIPanelCloseButton")
 	mmf.Close:SetPoint("TOPRIGHT", -9, -9)
 	
 	-- Home frame (for showing/hiding)
-	mmf.HomeFrame = CreateFrame("Frame", "ManMaps_HomeFrame", mmf)
-	mmf.HomeFrame:SetPoint(mmf:GetPoint())
+	mmf.HomeFrame = CreateFrame("Frame", "MapMan_HomeFrame", mmf)
+	mmf.HomeFrame:SetPoint("TOPLEFT")
 	mmf.HomeFrame:SetSize(mmf:GetSize())
 	-- Update source/dest city tables when HomeFrame is shown
 	mmf.HomeFrame:SetScript("OnShow", aTable.sourceScrollFrameUpdate)
 	
 	-- Home tab
-	mmf.MainTab = CreateFrame("Button", "ManMaps_HomeTab", mmf, "UIPanelButtonTemplate")
+	mmf.MainTab = CreateFrame("Button", "MapMan_HomeTab", mmf, "UIPanelButtonTemplate")
 	mmf.MainTab:SetPoint("TOPLEFT", 13, -15)
 	mmf.MainTab:SetFrameLevel(mmf:GetFrameLevel()+1)
 	mmf.MainTab:SetScript("OnClick", function(self, button)
@@ -74,17 +74,17 @@ function aTable.createFrames()
 	-- Font String
 	mmf.MainTab.Text = mmf.MainTab.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	mmf.MainTab.Text:SetText("Home")
-	mmf.MainTab.Text:SetPoint("CENTER", ManMaps_HomeTab, "CENTER")
+	mmf.MainTab.Text:SetPoint("CENTER", MapMan_HomeTab, "CENTER")
 	mmf.MainTab:SetFontString(mmf.MainTab.Text)
 	mmf.MainTab:SetSize(mmf.MainTab.Text:GetStringWidth()+10,mmf.MainTab.Text:GetStringHeight()+10)
 	
 	-- Routes frame (for showing/hiding)
-	mmf.RoutesFrame = CreateFrame("Frame", "ManMaps_RoutesFrame", mmf)
-	mmf.RoutesFrame:SetPoint(mmf:GetPoint())
+	mmf.RoutesFrame = CreateFrame("Frame", "MapMan_RoutesFrame", mmf)
+	mmf.RoutesFrame:SetPoint("TOPLEFT")
 	mmf.RoutesFrame:SetSize(mmf:GetSize())
 
 	-- Routes tab
-	mmf.RoutesTab = CreateFrame("Button", "ManMaps_RoutesTab", mmf.MainTab, "UIPanelButtonTemplate")
+	mmf.RoutesTab = CreateFrame("Button", "MapMan_RoutesTab", mmf.MainTab, "UIPanelButtonTemplate")
 	mmf.RoutesTab:SetPoint("TOPLEFT", mmf.MainTab, "TOPRIGHT")
 	mmf.RoutesTab:SetFrameLevel(mmf:GetFrameLevel()+1)
 	mmf.RoutesTab:SetScript("OnClick", function(self, button)
@@ -92,32 +92,54 @@ function aTable.createFrames()
 	-- Font String
 	mmf.RoutesTab.Text = mmf.RoutesTab.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	mmf.RoutesTab.Text:SetText("Routes")
-	mmf.RoutesTab.Text:SetPoint("CENTER", ManMaps_RoutesTab, "CENTER")
+	mmf.RoutesTab.Text:SetPoint("CENTER", MapMan_RoutesTab, "CENTER")
 	mmf.RoutesTab:SetFontString(mmf.RoutesTab.Text)
 	mmf.RoutesTab:SetSize(mmf.RoutesTab.Text:GetStringWidth()+10,mmf.RoutesTab.Text:GetStringHeight()+10)
 	
 	
 	-- Search bar
-	mmf.SearchBar = CreateFrame("EditBox", "ManMaps_SearchBarFrame", mmf.HomeFrame, "InputBoxTemplate")
+	mmf.SearchBar = CreateFrame("EditBox", "MapMan_SearchBarFrame", mmf.HomeFrame, "InputBoxTemplate")
 	mmf.SearchBar:SetFontObject(GameFontHighlight)
 	mmf.SearchBar:SetPoint("TOPLEFT", mmf.MainTab, "BOTTOMLEFT", 10, -10)
 	mmf.SearchBar:SetSize(180,15)
-	--ManMaps_SearchBarFrame.Middle:SetHeight(20)
-	--ManMaps_SearchBarFrame.Left:SetSize(8,20)
-	--ManMaps_SearchBarFrame.Right:SetSize(200,50)
+	--MapMan_SearchBarFrame.Middle:SetHeight(20)
+	--MapMan_SearchBarFrame.Left:SetSize(8,20)
+	--MapMan_SearchBarFrame.Right:SetSize(200,50)
 	mmf.SearchBar:SetText(SEARCH_TEXT)
 	mmf.SearchBar.Text = mmf.SearchBar:GetFontObject()
 	mmf.SearchBar:SetAutoFocus(false)
 	mmf.SearchBar:SetScript("OnTextChanged", aTable.searchCity)
 	mmf.SearchBar:Show()
 	
+	-- History Buttons
+	mmf.historyButtons = {} -- list of buttons for history
+	for i=1,10 do
+		mmf.HistoryButton = CreateFrame("Button", nil, mmf.HomeFrame, "UIPanelButtonTemplate")
+		mmf.HistoryButton:SetPoint("TOPLEFT", mmf.SearchBar, "BOTTOMLEFT", -5, -8)
+		mmf.HistoryButton:SetFrameLevel(mmf:GetFrameLevel()+1)
+		mmf.HistoryButton.Text = mmf.HistoryButton.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+		mmf.HistoryButton.Text:SetText("HISTORY")
+		mmf.HistoryButton.Text:SetPoint("CENTER", mmf.HistoryButton, "CENTER")
+		mmf.HistoryButton:SetFontString(mmf.HistoryButton.Text)
+		mmf.HistoryButton:SetSize(mmf.HistoryButton.Text:GetStringWidth()+10,mmf.HistoryButton.Text:GetStringHeight()+10)
+		mmf.HistoryButton:Hide()
+		mmf.historyButtons[i] = mmf.HistoryButton
+	end
+	
+	-- Change anchors / positioning of button #2+
+	for i=2,#mmf.historyButtons do
+		local button = mmf.historyButtons[i]
+		button:SetPoint("TOPLEFT", mmf.historyButtons[i-1], "TOPRIGHT")
+	end
+	
+	
 	
 	-- FauxScrollframe for sources
-	mmf.SourceScrollFrame = CreateFrame("ScrollFrame", "ManMaps_SourceScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
+	mmf.SourceScrollFrame = CreateFrame("ScrollFrame", "MapMan_SourceScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
 	mmf.SourceScrollFrame:SetPoint("TOPLEFT", 20, -100)
 	mmf.SourceScrollFrame:SetPoint("BOTTOMRIGHT", -700, 20)
 	mmf.SourceScrollFrame:SetBackdrop({
-		bgFile="Interface\\Addons\\ManMaps\\media\\White",
+		bgFile="Interface\\Addons\\MapMan\\media\\White",
 		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
 		tile=1, tileSize=1, edgeSize=1, 
 		insets={left=12, right=12, top=12, bottom=12}})
@@ -139,11 +161,11 @@ function aTable.createFrames()
 		mmf.SourceScrollFrame.sources[i] = sourceCity
 	end
 	-- FauxScrollframe for desinations
-	mmf.DestScrollFrame = CreateFrame("ScrollFrame", "ManMaps_DestinationScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
+	mmf.DestScrollFrame = CreateFrame("ScrollFrame", "MapMan_DestinationScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
 	mmf.DestScrollFrame:SetPoint("TOPLEFT", mmf.SourceScrollFrame, "TOPRIGHT", 30, 0)
 	mmf.DestScrollFrame:SetPoint("BOTTOMRIGHT", -480, 20)
 	mmf.DestScrollFrame:SetBackdrop({
-		bgFile="Interface\\Addons\\ManMaps\\media\\White",
+		bgFile="Interface\\Addons\\MapMan\\media\\White",
 		edgeFile="Interface\\ChatFrame\\ChatFrameBackground",
 		tile=1, tileSize=1, edgeSize=1, 
 		insets={left=1, right=1, top=1, bottom=1}})
@@ -188,7 +210,7 @@ end
 	--------------------------------------
 
 -- Hide all destination cities
-local function DestScrollFrameHide()
+local function destScrollFrameHide()
 	for i=1,DEST_NUM_LINES do
 		local button = mmf.DestScrollFrame.destinations[i]
 		button:Hide()
@@ -197,7 +219,7 @@ end
 
 
 -- Clear highlight from all cities
-local function UnlockButtonHighlights()
+local function unlockButtonHighlights()
 	for i=1,SRC_NUM_LINES do
 		local button = mmf.SourceScrollFrame.sources[i]
 		button:UnlockHighlight()
@@ -242,7 +264,7 @@ local function destScrollFrameUpdate(source)
 			end
 		end
 	else
-		DestScrollFrameHide()
+		destScrollFrameHide()
 	end
 end
 
@@ -276,7 +298,7 @@ function aTable.sourceScrollFrameUpdate(table, searching)
 			button:UnlockHighlight()
 			button:SetScript("OnClick", function(self, buttonPress)
 				selectedCity = table[idx]
-				UnlockButtonHighlights() -- clear all the highlights
+				unlockButtonHighlights() -- clear all the highlights
 				button:LockHighlight()
 				-- update dest cities for the clicked city
 				destScrollFrameUpdate(selectedCity)
@@ -324,11 +346,9 @@ end
 	--------------------------------------
 	
 function aTable.slashCommands()
-	SLASH_MANMAPS1 = "/manmaps"
-	SLASH_MANMAPS2 = "/manmap"
-	SLASH_MANMAPS3 = "/mmaps"
-	SLASH_MANMAPS4 = "/mmap"
-	SlashCmdList["MANMAPS"] = function(message)
+	SLASH_MAPMAN1 = "/mapman"
+	SLASH_MAPMAN2 = "/mman"
+	SlashCmdList["MAPMAN"] = function(message)
 		if mmf:IsShown() then mmf:Hide() else mmf:Show() end
 	end
 end

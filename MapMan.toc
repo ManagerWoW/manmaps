@@ -1,9 +1,9 @@
 ## Interface: 70300
-## Title: Man Maps
+## Title: MapMan
 ## Notes: Calculates the fastest routes to places
-## SavedVariables: ManMaps
+## SavedVariables: MapMan
 
-ManMaps.xml
-ManMaps.lua
+MapMan.xml
+MapMan.lua
 Cities.lua
 Frames.lua

@@ -3,7 +3,7 @@ local aName, aTable = ...
 function aTable.OnEvent(self, event, ...)
 	if (event == "ADDON_LOADED") then
 		local addonName = ...
-		if addonName == "ManMaps" then
+		if addonName == "MapMan" then
             aTable.slashCommands()
 			aTable.createFrames()
 		end
