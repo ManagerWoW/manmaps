@@ -6,6 +6,7 @@ local SRC_NUM_LINES = 20    -- how many cities to display
 local SRC_LINE_HEIGHT = 15  -- spacing between city names
 local DEST_NUM_LINES = 20
 local DEST_LINE_HEIGHT = 15
+local HISTORY_LENGTH = 10
 -- Sorted table of all the cities. More info in Cities.lua
 aTable.sortedCities, aTable.cityAlphabetTable = aTable.createSortedTable(aTable.cities, 1)
 -- Sorted table of paths between cities
@@ -21,10 +22,6 @@ function aTable.createFrames()
 	--          Frames/Buttons          --
 	--------------------------------------
 	--------------------------------------
-
--- List of variables/frames:
--- mmf (MapManFrame; main addon frame)
--- routesf (RoutesFrame; frame section that displays all route results)
 
 	mmf = CreateFrame("Frame", "MapManFrame", UIParent)
 
@@ -102,6 +99,7 @@ function aTable.createFrames()
 	mmf.SearchBar:SetFontObject(GameFontHighlight)
 	mmf.SearchBar:SetPoint("TOPLEFT", mmf.MainTab, "BOTTOMLEFT", 10, -10)
 	mmf.SearchBar:SetSize(180,15)
+	-- Textures for the search bar. Probably unused / delete later
 	--MapMan_SearchBarFrame.Middle:SetHeight(20)
 	--MapMan_SearchBarFrame.Left:SetSize(8,20)
 	--MapMan_SearchBarFrame.Right:SetSize(200,50)
@@ -113,21 +111,24 @@ function aTable.createFrames()
 	
 	-- History Buttons
 	mmf.historyButtons = {} -- list of buttons for history
-	for i=1,10 do
+	for i=1,HISTORY_LENGTH do
+		-- button size is determined when a city is selected,
+		-- see addHistory(city) method
 		mmf.HistoryButton = CreateFrame("Button", nil, mmf.HomeFrame, "UIPanelButtonTemplate")
 		mmf.HistoryButton:SetPoint("TOPLEFT", mmf.SearchBar, "BOTTOMLEFT", -5, -8)
 		mmf.HistoryButton:SetFrameLevel(mmf:GetFrameLevel()+1)
 		mmf.HistoryButton.Text = mmf.HistoryButton.Text or mmf:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-		mmf.HistoryButton.Text:SetText("HISTORY")
+		mmf.HistoryButton.Text:SetText("")
 		mmf.HistoryButton.Text:SetPoint("CENTER", mmf.HistoryButton, "CENTER")
+		mmf.HistoryButton.Text:SetWordWrap(false)
 		mmf.HistoryButton:SetFontString(mmf.HistoryButton.Text)
-		mmf.HistoryButton:SetSize(mmf.HistoryButton.Text:GetStringWidth()+10,mmf.HistoryButton.Text:GetStringHeight()+10)
 		mmf.HistoryButton:Hide()
 		mmf.historyButtons[i] = mmf.HistoryButton
 	end
 	
+	-- We needed to create button #1 first, to anchor to it
 	-- Change anchors / positioning of button #2+
-	for i=2,#mmf.historyButtons do
+	for i=2,HISTORY_LENGTH do
 		local button = mmf.historyButtons[i]
 		button:SetPoint("TOPLEFT", mmf.historyButtons[i-1], "TOPRIGHT")
 	end
@@ -160,7 +161,8 @@ function aTable.createFrames()
         sourceCity:Disable() -- disable until it is needed
 		mmf.SourceScrollFrame.sources[i] = sourceCity
 	end
-	-- FauxScrollframe for desinations
+	
+	-- FauxScrollframe for destinations
 	mmf.DestScrollFrame = CreateFrame("ScrollFrame", "MapMan_DestinationScrollFrame", mmf.HomeFrame, "FauxScrollFrameTemplate")
 	mmf.DestScrollFrame:SetPoint("TOPLEFT", mmf.SourceScrollFrame, "TOPRIGHT", 30, 0)
 	mmf.DestScrollFrame:SetPoint("BOTTOMRIGHT", -480, 20)
@@ -203,6 +205,9 @@ end
 
 
 
+
+
+
 	--------------------------------------
 	--------------------------------------
 	--          Helper Methods          --
@@ -227,11 +232,45 @@ local function unlockButtonHighlights()
 end
 
 
+-- Clear history
+local function clearHistory()
+	for i=1,HISTORY_LENGTH do
+		mmf.historyButtons[i].Text:SetText("")
+		mmf.historyButtons[i]:Hide()
+	end
+end
+
+
+-- Add city to history
+local function addHistory(city)
+	local width, height -- size of city text
+	for i=1,HISTORY_LENGTH do
+		if not mmf.historyButtons[i]:GetText() then
+			mmf.historyButtons[i]:Show()
+			mmf.historyButtons[i].Text:SetText(city)
+			
+			width = math.min(100, mmf.historyButtons[i].Text:GetStringWidth()+10)
+			height = mmf.historyButtons[i].Text:GetStringHeight()+10
+			
+			mmf.historyButtons[i].Text:SetWidth(width)
+			mmf.historyButtons[i]:SetSize(width, height)
+			break
+		end
+	end
+end
+
+
+
+
+
+
+
 local function destScrollFrameUpdate(source)
 	local offset = FauxScrollFrame_GetOffset(mmf.DestScrollFrame)
 	FauxScrollFrame_Update(mmf.DestScrollFrame, #aTable.sortedPaths, 
 	  DEST_NUM_LINES, DEST_LINE_HEIGHT)
-	-- Blizzard bug: FSF_U hides the scroll frame not scroll bar
+	-- Blizzard bug: FSF_U hides the scroll frame not scroll bar,
+	-- so we have to manually show it again
 	mmf.DestScrollFrame:Show() 
 	
 	local paths = aTable.createSortedTable(aTable.paths[source])
@@ -253,9 +292,9 @@ local function destScrollFrameUpdate(source)
 				button.text:SetText(paths[idx])
 				button.text:SetTextColor(1,.7,0,1)
 				----
-				---- CHANGE
+				---- PH
 				----
-				button.tooltipText = "Hello"
+				button.tooltipText = "PH: Will contain route info\nfor getting to this city"
 				-- button was disable on creation until ready to be used
 				button:Enable()
 				button:Show()
@@ -286,7 +325,8 @@ function aTable.sourceScrollFrameUpdate(table, searching)
 	
 	local offset = FauxScrollFrame_GetOffset(mmf.SourceScrollFrame)
 	FauxScrollFrame_Update(mmf.SourceScrollFrame, #table, SRC_NUM_LINES, SRC_LINE_HEIGHT)
-	-- Blizzard bug: FSF_U hides the scroll frame not scroll bar
+	-- Blizzard bug: FSF_U hides the scroll frame not scroll bar,
+	-- so we have to manually show it again
 	mmf.SourceScrollFrame:Show() 
 	
 	for i=1, SRC_NUM_LINES do
@@ -298,8 +338,9 @@ function aTable.sourceScrollFrameUpdate(table, searching)
 			button:UnlockHighlight()
 			button:SetScript("OnClick", function(self, buttonPress)
 				selectedCity = table[idx]
-				unlockButtonHighlights() -- clear all the highlights
+				unlockButtonHighlights() -- clear previous highlight
 				button:LockHighlight()
+				addHistory(selectedCity)
 				-- update dest cities for the clicked city
 				destScrollFrameUpdate(selectedCity)
 				end)

@@ -88,7 +88,8 @@ function aTable.searchCity(self, userInput)
 end
 
 function scanBags(item)
-	-- TODO: code to scan bags for item, and return its cooldown (if return is nil, then item is not in bags).
+	-- TODO: code to scan bags for item, and return its 
+	-- cooldown (if return is nil, then item is not in bags).
 		-- -also scan toys for portals
 end
 
